@@ -6,7 +6,7 @@ docker rm portainer
 echo ''
 
 echo 'Pull new version'
-docker pull portainer/portainer-ce
+docker pull cr.portainer.io/portainer/portainer-ce:latest
 echo ''
 
 echo 'Start new version'

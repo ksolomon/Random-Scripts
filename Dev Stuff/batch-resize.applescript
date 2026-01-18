@@ -22,9 +22,9 @@ to rescale_and_save(this_item)
 		set the target_width to theWidth
 		-- open the image file
 		set this_image to open this_item
-		
+
 		set typ to this_image's file type
-		
+
 		copy dimensions of this_image to {current_width, current_height}
 		if current_width is greater than target_width then
 			if current_width is greater than current_height then
@@ -36,13 +36,13 @@ to rescale_and_save(this_item)
 				scale this_image to size new_height
 			end if
 		end if
-		
+
 		tell application "Finder"
 			set file_name to name of this_item
 			set file_location to (container of this_item as string)
 			set new_item to (file_location & file_name)
 			save this_image in new_item as typ
 		end tell
-		
+
 	end tell
 end rescale_and_save

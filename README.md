@@ -9,7 +9,7 @@ A collection of random scripts I use on various platforms.
 * `batch-resize.applescript` - AppleScript to batch resize images using Preview on macOS
 * `element-styles.html` - Basic style guide for various HTML elements
 * `Random WordPress Functions.php` - Collection of random WordPress functions
-* `XMLRPC Brute Protection.php` - WordPress code to disable certain XMLRPC methods to prevent
+* `XMLRPC Brute Protection.php` - WordPress code to disable certain XMLRPC methods to prevent brute force attacks
 
 ### Linux
 

@@ -22,6 +22,7 @@ A collection of random scripts I use on various platforms.
 * `port-up.sh` - (Stupidly) simple Portainer upgrade script
 * `sysinfo.sh` - System info script (for MOTD)
 * `killvm.sh` - Proxmox script to force kill virtual machine
+* `claude-project-tracking.sh` - Script to auto-populate the `OTEL_RESOURCE_ATTRIBUTES` environment variable for project tracking with Claude Code
 
 ### Windows
 

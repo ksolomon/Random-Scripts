@@ -1,0 +1,222 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# backup-cron.sh
+# Creates tgz archives for configured source folders and stores them in a
+# configured backup destination. Intended to be run from cron.
+#
+# Config discovery order (first file found wins):
+# 1) BACKUP_CONFIG env var (explicit path)
+# 2) ~/.config/backup-cron.conf
+# 3) ~/.backup-cron.conf
+# 4) /etc/backup-cron.conf
+#
+# Required config values:
+#   BACKUP_DEST="/path/to/backup/destination"
+#   BACKUP_SOURCES=(
+#     "/path/to/source1"
+#     "/path/to/source2"
+#   )
+#
+# Optional config values:
+#   BACKUP_HOSTNAME_MODE="short"    # "short", "full", or "none" (default: short)
+#   BACKUP_COMPRESS_LEVEL="6"       # gzip level 1-9 (default: 6)
+#   BACKUP_KEEP_DAYS="0"            # remove old backups older than N days (0 disables)
+#   BACKUP_KEEP_LATEST="0"          # keep only newest N archives (0 disables)
+#   BACKUP_PREFIX="backup"          # archive file prefix (default: backup)
+#   BACKUP_LOG_FILE="/path/file"    # if set, append logs to this file
+#   BACKUP_STRICT_SOURCES="1"       # if 1, fail when any source is missing
+
+timestamp() { date +"%Y-%m-%dT%H:%M:%S%z"; }
+log() { echo "[$(timestamp)] $*"; }
+
+load_config() {
+  local cfg_candidates=()
+
+  if [[ -n "${BACKUP_CONFIG:-}" ]]; then
+    cfg_candidates+=("$BACKUP_CONFIG")
+  fi
+  cfg_candidates+=(
+    "$HOME/.config/backup-cron.conf"
+    "$HOME/.backup-cron.conf"
+    "/etc/backup-cron.conf"
+  )
+
+  local cfg
+  for cfg in "${cfg_candidates[@]}"; do
+    if [[ -f "$cfg" ]]; then
+      # shellcheck disable=SC1090
+      source "$cfg"
+      CONFIG_FILE_USED="$cfg"
+      return 0
+    fi
+  done
+
+  log "ERROR: No config file found."
+  log "Checked: ${cfg_candidates[*]}"
+  exit 1
+}
+
+validate_config() {
+  : "${BACKUP_DEST:?BACKUP_DEST is required in config}"
+  if [[ -z "${BACKUP_SOURCES+x}" ]] || [[ ${#BACKUP_SOURCES[@]} -eq 0 ]]; then
+    log "ERROR: BACKUP_SOURCES must contain at least one folder."
+    exit 1
+  fi
+
+  BACKUP_HOSTNAME_MODE="${BACKUP_HOSTNAME_MODE:-short}"
+  BACKUP_COMPRESS_LEVEL="${BACKUP_COMPRESS_LEVEL:-6}"
+  BACKUP_KEEP_DAYS="${BACKUP_KEEP_DAYS:-0}"
+  BACKUP_KEEP_LATEST="${BACKUP_KEEP_LATEST:-0}"
+  BACKUP_PREFIX="${BACKUP_PREFIX:-backup}"
+  BACKUP_STRICT_SOURCES="${BACKUP_STRICT_SOURCES:-1}"
+
+  case "$BACKUP_HOSTNAME_MODE" in
+    short|full|none) ;;
+    *)
+      log "ERROR: BACKUP_HOSTNAME_MODE must be short, full, or none."
+      exit 1
+      ;;
+  esac
+
+  if ! [[ "$BACKUP_COMPRESS_LEVEL" =~ ^[1-9]$ ]]; then
+    log "ERROR: BACKUP_COMPRESS_LEVEL must be 1-9."
+    exit 1
+  fi
+
+  if ! [[ "$BACKUP_KEEP_DAYS" =~ ^[0-9]+$ ]]; then
+    log "ERROR: BACKUP_KEEP_DAYS must be a non-negative integer."
+    exit 1
+  fi
+
+  if ! [[ "$BACKUP_KEEP_LATEST" =~ ^[0-9]+$ ]]; then
+    log "ERROR: BACKUP_KEEP_LATEST must be a non-negative integer."
+    exit 1
+  fi
+}
+
+setup_logging() {
+  if [[ -n "${BACKUP_LOG_FILE:-}" ]]; then
+    mkdir -p "$(dirname "$BACKUP_LOG_FILE")"
+    touch "$BACKUP_LOG_FILE"
+    exec >>"$BACKUP_LOG_FILE" 2>&1
+  fi
+}
+
+hostname_part() {
+  case "$BACKUP_HOSTNAME_MODE" in
+    short) hostname -s 2>/dev/null || hostname ;;
+    full) hostname -f 2>/dev/null || hostname ;;
+    none) echo "" ;;
+  esac
+}
+
+archive_one_source() {
+  local source="$1"
+  local source_abs source_name host date_tag archive_name archive_path
+
+  if [[ ! -d "$source" ]]; then
+    if [[ "$BACKUP_STRICT_SOURCES" == "1" ]]; then
+      log "ERROR: Source folder not found: $source"
+      return 1
+    fi
+    log "WARN: Source folder not found, skipping: $source"
+    return 0
+  fi
+
+  source_abs="$(cd "$source" && pwd -P)"
+  source_name="$(basename "$source_abs")"
+  host="$(hostname_part)"
+  date_tag="$(date +"%Y%m%d_%H%M%S")"
+
+  if [[ -n "$host" ]]; then
+    archive_name="${BACKUP_PREFIX}_${host}_${source_name}_${date_tag}.tgz"
+  else
+    archive_name="${BACKUP_PREFIX}_${source_name}_${date_tag}.tgz"
+  fi
+
+  archive_path="${BACKUP_DEST%/}/$archive_name"
+
+  log "Creating archive for: $source_abs"
+  tar -C "$(dirname "$source_abs")" -cf - "$(basename "$source_abs")" | gzip "-$BACKUP_COMPRESS_LEVEL" > "$archive_path"
+  log "Created: $archive_path"
+}
+
+prune_old_backups() {
+  if [[ "$BACKUP_KEEP_DAYS" -gt 0 ]]; then
+    log "Pruning archives older than $BACKUP_KEEP_DAYS days in $BACKUP_DEST"
+    find "$BACKUP_DEST" -maxdepth 1 -type f -name "${BACKUP_PREFIX}_*.tgz" -mtime +"$BACKUP_KEEP_DAYS" -print -delete
+  fi
+}
+
+prune_keep_latest() {
+  if [[ "$BACKUP_KEEP_LATEST" -le 0 ]]; then
+    return 0
+  fi
+
+  shopt -s nullglob
+  local archives=( "${BACKUP_DEST%/}/${BACKUP_PREFIX}"_*.tgz )
+  shopt -u nullglob
+
+  local total="${#archives[@]}"
+  if [[ "$total" -le "$BACKUP_KEEP_LATEST" ]]; then
+    return 0
+  fi
+
+  log "Pruning to keep latest $BACKUP_KEEP_LATEST archives per backup set in $BACKUP_DEST"
+
+  local sorted
+  IFS=$'\n' read -r -d '' -a sorted < <(ls -1t "${archives[@]}" && printf '\0')
+
+  # Keep the newest N per backup stem (everything before _YYYYMMDD_HHMMSS).
+  # Example stem:
+  #   backup_host_documents_20260221_023000.tar.gz
+  # Group key becomes:
+  #   backup_host_documents
+  local path base stem key
+  while IFS= read -r path; do
+    log "Deleting old archive: $path"
+    rm -f -- "$path"
+  done < <(
+    while IFS= read -r path; do
+      base="$(basename "$path")"
+      stem="${base%.tar.gz}"
+      if [[ "$stem" =~ ^(.+)_[0-9]{8}_[0-9]{6}$ ]]; then
+        key="${BASH_REMATCH[1]}"
+      else
+        key="$stem"
+      fi
+      printf '%s\t%s\n' "$key" "$path"
+    done < <(printf '%s\n' "${sorted[@]}") |
+      awk -F '\t' -v keep="$BACKUP_KEEP_LATEST" '{ seen[$1]++; if (seen[$1] > keep) print $2 }'
+  )
+}
+
+main() {
+  load_config
+  validate_config
+  setup_logging
+
+  log "Starting backup run"
+  log "Config file: $CONFIG_FILE_USED"
+
+  mkdir -p "$BACKUP_DEST"
+
+  local failed=0 src
+  for src in "${BACKUP_SOURCES[@]}"; do
+    if ! archive_one_source "$src"; then
+      failed=1
+    fi
+  done
+
+  prune_old_backups
+  prune_keep_latest
+
+  if [[ "$failed" -ne 0 ]]; then
+    log "Backup run completed with errors."
+    exit 1
+  fi
+  log "Backup run completed successfully."
+}
+
+main "$@"

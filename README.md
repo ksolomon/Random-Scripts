@@ -13,6 +13,9 @@ A collection of random scripts I use on various platforms.
 
 ### Linux
 
+* Docker Backup - Script to create tgz archives of configured source folders, intended to be run from cron
+  * `docker-backup` - Main backup script; discovers config from `BACKUP_CONFIG` env var or standard config paths
+  * `backup-cron.conf` - Example configuration file defining backup destination and source directories
 * Link Certs - (Stupidly) simple scripts to link LetsEncrypt certificate files between two machines
   * `linkcert.sh` - Link latest certificate files on host machine from LetsEncrypt folder to target folder
   * `copycert.sh` - Copy certificate files from target folder on host machine and retsart Apache

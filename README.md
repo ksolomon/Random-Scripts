@@ -6,27 +6,33 @@ A collection of random scripts I use on various platforms.
 
 ### Dev Stuff
 
-* `batch-resize.applescript` - AppleScript to batch resize images using Preview on macOS
-* `element-styles.html` - Basic style guide for various HTML elements
-* `Random WordPress Functions.php` - Collection of random WordPress functions
-* `XMLRPC Brute Protection.php` - WordPress code to disable certain XMLRPC methods to prevent brute force attacks
+- `element-styles.html` - Basic style guide for various HTML elements
+- `Random WordPress Functions.php` - Collection of random WordPress functions
+- `XMLRPC Brute Protection.php` - WordPress code to disable certain XMLRPC methods to prevent brute force attacks
 
 ### Linux
 
-* Docker Backup - Script to create tgz archives of configured source folders, intended to be run from cron
-  * `docker-backup` - Main backup script; discovers config from `BACKUP_CONFIG` env var or standard config paths
-  * `backup-cron.conf` - Example configuration file defining backup destination and source directories
-* Link Certs - (Stupidly) simple scripts to link LetsEncrypt certificate files between two machines
-  * `linkcert.sh` - Link latest certificate files on host machine from LetsEncrypt folder to target folder
-  * `copycert.sh` - Copy certificate files from target folder on host machine and retsart Apache
-* `etcbak.sh` - (Stupidly) simple Proxmox /etc folder backup script
-* `genpass.sh` - Shell function to generate a random password of specified length using letters, digits, and symbols.
-* `iscsi-mount.sh` - Script to connect iscsi target, mount local storage, and restart dependent services
-* `port-up.sh` - (Stupidly) simple Portainer upgrade script
-* `sysinfo.sh` - System info script (for MOTD)
-* `killvm.sh` - Proxmox script to force kill virtual machine
-* `claude-project-tracking.sh` - Script to auto-populate the `OTEL_RESOURCE_ATTRIBUTES` environment variable for project tracking with Claude Code
+- Docker Backup - Script to create tgz archives of configured source folders, intended to be run from cron
+  - `docker-backup` - Main backup script; discovers config from `BACKUP_CONFIG` env var or standard config paths
+  - `backup-cron.conf` - Example configuration file defining backup destination and source directories
+- Link Certs - (Stupidly) simple scripts to link LetsEncrypt certificate files between two machines
+  - `linkcert.sh` - Link latest certificate files on host machine from LetsEncrypt folder to target folder
+  - `copycert.sh` - Copy certificate files from target folder on host machine and retsart Apache
+- `etcbak.sh` - (Stupidly) simple Proxmox /etc folder backup script
+- `genpass.sh` - Shell function to generate a random password of specified length using letters, digits, and symbols.
+- `iscsi-mount.sh` - Script to connect iscsi target, mount local storage, and restart dependent services
+- `port-up.sh` - (Stupidly) simple Portainer upgrade script
+- `sysinfo.sh` - System info script (for MOTD)
+- `killvm.sh` - Proxmox script to force kill virtual machine
+- `claude-project-tracking.sh` - Script to auto-populate the `OTEL_RESOURCE_ATTRIBUTES` environment variable for project tracking with Claude Code
 
 ### Windows
 
-* `reset-mounts.bat` - Reset network drive mounts on workstation
+- `reset-mounts.bat` - Reset network drive mounts on workstation
+
+### MacOS
+
+- `batch-resize.applescript` - AppleScript to batch resize images using Preview on macOS
+- Proxy Watchdog - AppleScript to monitor and restart a proxy application if it stops responding
+  - `iterm-proxy-watchdog.plist` - LaunchAgent plist to run the watchdog script
+  - `proxy-up` - Main script to monitor an ssh tunnel and restart it if it fails.  See the [README](MacOS/Proxy Watchdog/README.md) for details.

@@ -1,0 +1,99 @@
+#!/bin/zsh
+
+PROFILE="iTerm Proxy Profile"
+HOME_SSID="Home_SSID"
+HOME_GATEWAY="192.168.1.1"
+
+shouldRunTunnel() {
+    local wifiDevice
+    local ssid
+    local gateway
+
+    # Find the Wi-Fi interface rather than assuming en0/en1.
+    wifiDevice=$(
+        /usr/sbin/networksetup -listallhardwareports |
+        /usr/bin/awk '
+            /Hardware Port: Wi-Fi/ {
+                getline
+                print $2
+                exit
+            }
+        '
+    )
+
+    if [[ -n "$wifiDevice" ]]; then
+        ssid=$(
+            /usr/sbin/networksetup -getairportnetwork "$wifiDevice" 2>/dev/null |
+            /usr/bin/sed 's/^Current Wi-Fi Network: //'
+        )
+
+        # Explicitly at home via Wi-Fi.
+        if [[ "$ssid" == "$HOME_SSID" ]]; then
+            return 1
+        fi
+    fi
+
+    # Check the active default gateway. This also covers wired connections.
+    gateway=$(
+        /sbin/route -n get default 2>/dev/null |
+        /usr/bin/awk '/gateway:/ { print $2 }'
+    )
+
+    # No active network/default route.
+    if [[ -z "$gateway" ]]; then
+        return 1
+    fi
+
+    # Explicitly at home via wired or Wi-Fi.
+    if [[ "$gateway" == "$HOME_GATEWAY" ]]; then
+        return 1
+    fi
+
+    # We have a network connection and it isn't home.
+    return 0
+}
+
+if ! shouldRunTunnel; then
+    exit 0
+fi
+
+export ITERM_PROFILE="$PROFILE"
+
+/usr/bin/osascript <<'APPLESCRIPT'
+set targetProfile to system attribute "ITERM_PROFILE"
+
+tell application "iTerm2"
+    set profileFound to false
+
+    -- Look through every session in every tab in every window.
+    repeat with aWindow in windows
+        repeat with aTab in tabs of aWindow
+            repeat with aSession in sessions of aTab
+                try
+                    set sessionProfile to (profile name of aSession) as text
+
+                    if sessionProfile = targetProfile then
+                        set profileFound to true
+                        exit repeat
+                    end if
+                end try
+            end repeat
+
+            if profileFound then exit repeat
+        end repeat
+
+        if profileFound then exit repeat
+    end repeat
+
+    -- Only create the session if it doesn't already exist.
+    if not profileFound then
+        if (count of windows) > 0 then
+            tell current window
+                create tab with profile targetProfile
+            end tell
+        else
+            create window with profile targetProfile
+        end if
+    end if
+end tell
+APPLESCRIPT

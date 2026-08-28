@@ -189,7 +189,7 @@ function get_page_selector($menu) {
 }
 
 // post_tags() - Custom list of tags associated with a post.  Defaults: comma and space between each tag and returns "no tags" if there are no tags associated.
-function post_tags($sep=", ", $notags="${2:no tags") {
+function post_tags($sep=", ", $notags="no tags") {
 	global $post;
 
 	$posttags = get_the_tags();

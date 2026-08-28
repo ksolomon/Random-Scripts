@@ -35,4 +35,4 @@ A collection of random scripts I use on various platforms.
 - `batch-resize.applescript` - AppleScript to batch resize images using Preview on macOS
 - Proxy Watchdog - AppleScript to monitor and restart a proxy application if it stops responding
   - `iterm-proxy-watchdog.plist` - LaunchAgent plist to run the watchdog script
-  - `proxy-up` - Main script to monitor an ssh tunnel and restart it if it fails.  See the [README](MacOS/Proxy Watchdog/README.md) for details.
+  - `proxy-up` - Main script to monitor an ssh tunnel and restart it if it fails.  See the [README](<MacOS/Proxy Watchdog/README.md>) for details.
